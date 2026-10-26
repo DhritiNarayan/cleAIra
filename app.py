@@ -3,6 +3,9 @@ import re
 import shutil
 import uuid
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import nltk
 import pymupdf as fitz
 import pytesseract
@@ -409,16 +412,21 @@ def register():
                 set_verification_token(user_id, token)
 
                 user = get_user_by_id(user_id)
-                send_verification_email(user)
 
-                return render_template(
-                    "verify_email.html",
-                    success=True,
-                    message=(
-                        "Account created. A verification email has been sent to "
-                        f"{form['email']}. Please verify your email before logging in."
-                    ),
-                )
+                if EMAIL_USERNAME and EMAIL_PASSWORD:
+                    send_verification_email(user)
+                    return render_template(
+                        "verify_email.html",
+                        success=True,
+                        message=(
+                            "Account created. A verification email has been sent to "
+                            f"{form['email']}. Please verify your email before logging in."
+                        ),
+                    )
+                else:
+                    mark_email_verified(user_id)
+                    start_session(get_user_by_id(user_id))
+                    return redirect(url_for("home"))
             except Exception as exc:
                 errors.append(
                     "Your account could not be created or the verification email "
@@ -2850,7 +2858,7 @@ def home():
         results = _deduplicate_results(results)
 
         # Performance mode: skip contextualizing every existing finding.
-        # On a local CPU-backed model this can mean many sequential LLM calls.
+        # Multiple sequential Gemini calls can make a review unnecessarily slow.
         # Keep the rule-based findings intact and make only one AI pass to look
         # for additional risks. This avoids the previous multi-call bottleneck.
         ai_status = "limited"
