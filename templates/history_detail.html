@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>cleAIra Review Details</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="navbar">
+    <span>cleAIra</span>
+    <div class="nav-actions">
+        <a class="nav-link" href="/">Review</a>
+        <a class="nav-link" href="/history">History</a>
+        <a class="nav-link" href="/account">{{ user.username }}</a>
+        <a class="nav-link" href="/logout">Logout</a>
+    </div>
+</div>
+
+<div class="container">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;">
+        <div>
+            <h2 style="margin-bottom:6px;">Review Details</h2>
+            <div style="color:#66757c;font-size:14px;">{{ review.source }} &nbsp;•&nbsp; {{ review.created_at }}</div>
+        </div>
+        <a class="view-details-link" href="/history">← Back to History</a>
+    </div>
+
+    {% if review.summary %}
+    <div class="result" style="margin-top:24px;">
+        <h2>Review Summary</h2>
+        <p><strong>Overall Risk:</strong> {{ review.summary.overall }}</p>
+        <p>{{ review.summary.message }}</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+            <span class="info-box">Total Findings: <strong>{{ review.summary.total }}</strong></span>
+            <span class="info-box">High: <strong>{{ review.summary.high }}</strong></span>
+            <span class="info-box">Medium: <strong>{{ review.summary.medium }}</strong></span>
+            <span class="info-box">Low: <strong>{{ review.summary.low }}</strong></span>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if review.overall_analysis %}
+    {% set analysis = review.overall_analysis %}
+    <h2 style="margin-top:32px;">Overall Contract Analysis</h2>
+    <div class="result">
+        <h2>{{ analysis.contract_type }}</h2>
+        <p>{{ analysis.headline }}</p>
+
+        {% if analysis.obligations %}
+        <div class="info-box">
+            <strong>Key Obligations</strong>
+            <ul>
+            {% for item in analysis.obligations %}
+                <li><strong>{{ item.title }}:</strong> {{ item.sentence }}</li>
+            {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if analysis.financial_terms %}
+        <div class="info-box">
+            <strong>Financial Terms</strong>
+            <ul>
+            {% for item in analysis.financial_terms %}
+                <li><strong>{{ item.value }}</strong> — {{ item.context }}</li>
+            {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if analysis.time_terms %}
+        <div class="info-box">
+            <strong>Time &amp; Deadlines</strong>
+            <ul>
+            {% for item in analysis.time_terms %}
+                <li><strong>{{ item.value }}</strong> — {{ item.context }}</li>
+            {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if analysis.key_dates %}
+        <div class="info-box">
+            <strong>Key Dates</strong>
+            <ul>
+            {% for item in analysis.key_dates %}
+                <li><strong>{{ item.value }}</strong> — {{ item.context }}</li>
+            {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if analysis.missing %}
+        <div class="check-box">
+            <strong>Potentially Missing Provisions</strong>
+            <ul>
+            {% for item in analysis.missing %}
+                <li>{{ item }}</li>
+            {% endfor %}
+            </ul>
+            <p>These items were not detected. This does not prove they are absent from the document.</p>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <h2 style="margin-top:32px;">Clause-by-Clause Findings</h2>
+
+    {% for result in review.results %}
+    <div class="result">
+        <h2>{{ result.title }}</h2>
+        <p><strong>Category:</strong> {{ result.category }}</p>
+        <p><strong>Risk:</strong> {{ result.risk }}{% if result.priority %} &nbsp;•&nbsp; <strong>Priority:</strong> {{ result.priority }}{% endif %}</p>
+
+        <div class="simple-box">
+            <strong>Detected Clause</strong>
+            <p>{{ result.sentence }}</p>
+        </div>
+
+        {% if result.explanation %}
+        <div class="info-box">
+            <strong>Explanation</strong>
+            <p>{{ result.explanation }}</p>
+        </div>
+        {% endif %}
+
+        {% if result.simple %}
+        <div class="simple-box">
+            <strong>In simple terms</strong>
+            <p>{{ result.simple }}</p>
+        </div>
+        {% endif %}
+
+        {% if result.why_it_matters %}
+        <div class="info-box">
+            <strong>Why this matters</strong>
+            <p>{{ result.why_it_matters }}</p>
+        </div>
+        {% endif %}
+
+        {% if result.what_to_check %}
+        <div class="check-box">
+            <strong>What to check</strong>
+            <ul>
+            {% for item in result.what_to_check %}
+                <li>{{ item }}</li>
+            {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if result.suggested_action %}
+        <div class="action-box">
+            <strong>Suggested action</strong>
+            <p>{{ result.suggested_action }}</p>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="empty-state">No review findings were stored for this entry.</div>
+    {% endfor %}
+</div>
+</body>
+</html>

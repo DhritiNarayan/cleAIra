@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>cleAIra</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="/static/script.js"></script>
+    <style>
+        .upload-error {
+            margin: 0 0 22px;
+            padding: 15px 18px;
+            border: 1px solid #e7b8b8;
+            border-radius: 14px;
+            background: #fff5f5;
+            color: #7f1d1d;
+            box-shadow: 0 6px 18px rgba(127,29,29,.06);
+        }
+
+        .upload-error strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 14px;
+        }
+
+        .upload-error span {
+            display: block;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .professional-results {
+            margin-top: 34px;
+        }
+
+        .results-intro {
+            margin-bottom: 18px;
+        }
+
+        .results-intro .eyebrow {
+            margin: 0 0 6px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 1.2px;
+            color: #6d777b;
+            text-transform: uppercase;
+        }
+
+        .results-intro h2 {
+            margin: 0;
+            color: #173b45;
+        }
+
+        .results-intro p {
+            margin: 7px 0 0;
+            color: #697579;
+            line-height: 1.55;
+        }
+
+        .contract-summary {
+            margin: 24px 0 26px;
+            padding: 26px;
+            background: linear-gradient(135deg, #f8f5ef, #fbfaf7);
+            border: 1px solid #e5dfd5;
+            border-radius: 20px;
+            box-shadow: 0 10px 28px rgba(23,59,69,.07);
+        }
+
+        .summary-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            margin-bottom: 12px;
+        }
+
+        .summary-label {
+            margin: 0 0 5px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 1.2px;
+            color: #6d777b;
+        }
+
+        .contract-summary h2 {
+            margin: 0;
+            color: #173b45;
+        }
+
+        .overall-risk {
+            min-width: 92px;
+            padding: 10px 17px;
+            border-radius: 999px;
+            text-align: center;
+            font-weight: 800;
+            border: 1px solid #d8d1c6;
+            background: white;
+        }
+
+        .overall-risk.high {
+            color: #8b1e1e;
+            background: #fceaea;
+            border-color: #efcaca;
+        }
+
+        .overall-risk.medium {
+            color: #805b00;
+            background: #fff4d6;
+            border-color: #ead59b;
+        }
+
+        .overall-risk.low {
+            color: #21613a;
+            background: #e9f6ed;
+            border-color: #c8e5d1;
+        }
+
+        .summary-message {
+            margin: 0 0 20px;
+            color: #4f5b60;
+            line-height: 1.6;
+        }
+
+        .risk-counts {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        .risk-count {
+            padding: 16px 12px;
+            background: rgba(255,255,255,.82);
+            border: 1px solid #e5dfd5;
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        .risk-count strong {
+            display: block;
+            font-size: 27px;
+            line-height: 1.1;
+            color: #173b45;
+        }
+
+        .risk-count span {
+            display: block;
+            margin-top: 7px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .7px;
+            color: #697579;
+        }
+
+        .risk-count.high strong { color: #a12626; }
+        .risk-count.medium strong { color: #9a7000; }
+        .risk-count.low strong { color: #287043; }
+
+        .priority-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 7px;
+            margin: 0 0 15px;
+        }
+
+        .priority-pill,
+        .risk-pill {
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .2px;
+            white-space: nowrap;
+        }
+
+        .priority-pill.critical {
+            color: #8b1e1e;
+            background: #fceaea;
+            border: 1px solid #efcaca;
+        }
+
+        .priority-pill.high-priority {
+            color: #a12626;
+            background: #fff0f0;
+            border: 1px solid #f0d0d0;
+        }
+
+        .priority-pill.review {
+            color: #805b00;
+            background: #fff4d6;
+            border: 1px solid #ead59b;
+        }
+
+        .priority-pill.lower-priority {
+            color: #21613a;
+            background: #e9f6ed;
+            border: 1px solid #c8e5d1;
+        }
+
+        .risk-pill {
+            color: #8b1e1e;
+            background: #fceaea;
+            border: 1px solid #efcaca;
+        }
+
+        .result {
+            position: relative;
+            margin: 0 0 16px;
+            padding: 23px;
+            background: #fff;
+            border: 1px solid #e4e8e8;
+            border-radius: 18px;
+            box-shadow: 0 7px 22px rgba(23,59,69,.055);
+            overflow: hidden;
+        }
+
+        .result::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: #173b45;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 18px;
+            padding-left: 4px;
+            margin-bottom: 18px;
+        }
+
+        .result-category {
+            margin: 0 0 5px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #6d777b;
+        }
+
+        .result h2 {
+            margin: 0;
+            color: #173b45;
+            font-size: 20px;
+            line-height: 1.25;
+        }
+
+        .result-badges {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .detected-clause {
+            padding: 15px 17px;
+            margin-bottom: 18px;
+            background: #f8faf9;
+            border: 1px solid #e1e7e6;
+            border-left: 3px solid #173b45;
+            border-radius: 11px;
+        }
+
+        .section-label {
+            margin: 0 0 7px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .8px;
+            text-transform: uppercase;
+            color: #697579;
+        }
+
+        .detected-clause p:last-child,
+        .explanation-text,
+        .simple-box p,
+        .info-box p,
+        .action-box p {
+            margin: 0;
+            color: #435157;
+            font-size: 13px;
+            line-height: 1.65;
+        }
+
+        .explanation-block {
+            margin-bottom: 17px;
+        }
+
+        .simple-box,
+        .info-box,
+        .check-box,
+        .action-box {
+            padding: 15px 16px;
+            border-radius: 12px;
+            margin-top: 12px;
+        }
+
+        .simple-box {
+            background: #f3f5ff;
+            border: 1px solid #dde2ff;
+        }
+
+        .simple-box .section-label {
+            color: #5159a8;
+        }
+
+        .info-box {
+            background: #fafbfc;
+            border: 1px solid #e3e7eb;
+        }
+
+        .check-box {
+            background: #fffaf0;
+            border: 1px solid #f0dfb6;
+        }
+
+        .check-box ul {
+            margin: 0;
+            padding-left: 19px;
+            color: #435157;
+            font-size: 13px;
+            line-height: 1.65;
+        }
+
+        .check-box li + li {
+            margin-top: 5px;
+        }
+
+        .action-box {
+            background: #f4f8f6;
+            border: 1px solid #d7e5dc;
+        }
+
+        .action-box .section-label {
+            color: #287043;
+        }
+
+
+
+        .no-findings-card {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            margin: 0 0 30px;
+            padding: 24px;
+            background: #f4f8f6;
+            border: 1px solid #d7e5dc;
+            border-radius: 18px;
+            box-shadow: 0 7px 22px rgba(23,59,69,.045);
+        }
+
+        .no-findings-icon {
+            width: 38px;
+            height: 38px;
+            flex: 0 0 38px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: #e9f6ed;
+            border: 1px solid #c8e5d1;
+            color: #287043;
+            font-weight: 900;
+            font-size: 18px;
+        }
+
+        .no-findings-card .eyebrow {
+            margin: 0 0 5px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #287043;
+        }
+
+        .no-findings-card h2 {
+            margin: 0;
+            color: #173b45;
+            font-size: 19px;
+        }
+
+        .no-findings-card p:not(.eyebrow) {
+            margin: 8px 0 0;
+            color: #4f5b60;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .no-findings-card .no-findings-note {
+            color: #697579;
+            font-size: 12px;
+        }
+
+        .overall-analysis {
+            margin: 0 0 30px;
+            padding: 24px;
+            background: #ffffff;
+            border: 1px solid #e3e7eb;
+            border-radius: 20px;
+            box-shadow: 0 8px 24px rgba(23,59,69,.05);
+        }
+
+        .overall-analysis-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+            margin-bottom: 18px;
+        }
+
+        .analysis-type {
+            display: inline-block;
+            margin-bottom: 7px;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: #eef4f5;
+            color: #315d67;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: .5px;
+        }
+
+        .overall-analysis h2 {
+            margin: 0;
+            color: #173b45;
+        }
+
+        .overall-headline {
+            margin: 8px 0 0;
+            color: #59656a;
+            font-size: 13px;
+            line-height: 1.55;
+        }
+
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+        }
+
+        .terms-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+        }
+
+        .term-column + .term-column {
+            border-left: 1px solid #e5e8ea;
+            padding-left: 18px;
+        }
+
+        .analysis-panel.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .term-group + .term-group {
+            margin-top: 16px;
+        }
+
+        .term-group-title {
+            margin: 0 0 8px;
+            color: #59656a;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+        }
+
+        .term-list {
+            list-style: none;
+            padding: 0 !important;
+            margin: 0;
+        }
+
+        .term-list li {
+            display: flex;
+            gap: 9px;
+            align-items: baseline;
+            padding: 9px 0;
+            border-bottom: 1px solid #e9edef;
+        }
+
+        .term-list li:last-child {
+            border-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .term-value {
+            flex: 0 0 auto;
+            font-weight: 800;
+            color: #31545e;
+        }
+
+        .term-context {
+            color: #59656a;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .analysis-panel {
+            padding: 17px;
+            border: 1px solid #e5e8ea;
+            border-radius: 14px;
+            background: #fafbfc;
+        }
+
+        .analysis-panel h3 {
+            margin: 0 0 10px;
+            color: #31545e;
+            font-size: 14px;
+        }
+
+        .analysis-panel ul {
+            margin: 0;
+            padding-left: 19px;
+            color: #435157;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .analysis-panel li + li {
+            margin-top: 6px;
+        }
+
+        .analysis-panel.missing {
+            background: #fffaf0;
+            border-color: #f0dfb6;
+        }
+
+        .analysis-panel.missing h3 {
+            color: #805b00;
+        }
+
+        .analysis-empty {
+            margin: 0;
+            color: #7a8589;
+            font-size: 13px;
+        }
+
+        .obligation-title {
+            font-weight: 800;
+            color: #31545e;
+        }
+
+        .amount-item {
+            font-weight: 700;
+            color: #31545e;
+        }
+
+        @media (max-width: 700px) {
+            .overall-analysis-header {
+                flex-direction: column;
+            }
+
+            .analysis-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .terms-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .term-column + .term-column {
+                border-left: 0;
+                border-top: 1px solid #e5e8ea;
+                padding-left: 0;
+                padding-top: 14px;
+            }
+        }
+
+        @media (max-width: 700px) {
+            .summary-header,
+            .result-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .result-badges {
+                justify-content: flex-start;
+            }
+
+            .risk-counts {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 430px) {
+            .contract-summary,
+            .result {
+                padding: 17px;
+            }
+        }
+    </style>
+
+</head>
+
+<body>
+
+<div class="navbar">
+    <span>cleAIra</span>
+
+    <div class="nav-actions">
+        <a class="nav-link" href="/history">History</a>
+        <a class="nav-link" href="/account">{{ user.username }}</a>
+        <a class="nav-link" href="/logout">Logout</a>
+    </div>
+</div>
+
+
+<div class="container">
+
+    <h2>AI-Based Legal Document Review</h2>
+
+
+    {% if error_message %}
+        <div class="upload-error" role="alert">
+            <strong>Upload failed</strong>
+            <span>{{ error_message }}</span>
+        </div>
+    {% endif %}
+
+    <form method="POST" enctype="multipart/form-data">
+
+        <div class="top-buttons">
+
+            <button
+                class="top-btn"
+                type="button"
+                onclick="showSection('paste')"
+            >
+                📄 Paste Text
+            </button>
+
+            <button
+                class="top-btn"
+                type="button"
+                onclick="showSection('upload')"
+            >
+                📎 Upload File
+            </button>
+
+        </div>
+
+
+        <!-- TEXT SECTION -->
+        <div id="paste" class="section active">
+
+            <textarea
+                name="clause"
+                placeholder="Paste legal document here..."
+            ></textarea>
+
+        </div>
+
+
+        <!-- UPLOAD SECTION -->
+        <div id="upload" class="section">
+
+            <div class="upload-box">
+
+                <h3>Upload PDF or Image</h3>
+
+                <input
+                    type="file"
+                    name="file"
+                    accept=".pdf,.png,.jpg,.jpeg"
+                >
+
+            </div>
+
+        </div>
+
+
+        <button class="submit" type="submit">
+            Analyze Document
+        </button>
+
+    </form>
+
+
+    {% if summary %}
+        <div class="professional-results">
+            <div class="results-intro">
+                <p class="eyebrow">Clause-by-clause review</p>
+                <h2>Analysis Results</h2>
+                <p>Prioritized findings from the submitted document.</p>
+            </div>
+
+            <div class="priority-legend">
+                <span class="priority-pill critical">Critical</span>
+                <span class="priority-pill high-priority">High Priority</span>
+                <span class="priority-pill review">Review</span>
+                <span class="priority-pill lower-priority">Lower Priority</span>
+            </div>
+
+            {% if overall_analysis %}
+            <section class="overall-analysis">
+                <div class="overall-analysis-header">
+                    <div>
+                        <span class="analysis-type">{{ overall_analysis.contract_type }}</span>
+                        <h2>Overall Contract Analysis</h2>
+                        <p class="overall-headline">{{ overall_analysis.headline }}</p>
+                    </div>
+                </div>
+
+                <div class="analysis-grid">
+                    <div class="analysis-panel full-width">
+                        <h3>Key Obligations</h3>
+                        {% if overall_analysis.obligations %}
+                        <ul>
+                            {% for item in overall_analysis.obligations %}
+                            <li>
+                                <span class="obligation-title">{{ item.title }}:</span>
+                                {{ item.text }}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="analysis-empty">No clear obligations were extracted from the detected clauses.</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="analysis-panel full-width">
+                        <h3>Important Amounts & Time Terms</h3>
+                        <div class="terms-grid">
+                            <div class="term-column">
+                                <p class="term-group-title">Financial Terms</p>
+                                {% if overall_analysis.financial_terms %}
+                                <ul class="term-list">
+                                    {% for item in overall_analysis.financial_terms %}
+                                    <li>
+                                        <span class="term-value">{{ item.value }}</span>
+                                        <span class="term-context">{{ item.context }}</span>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% else %}
+                                <p class="analysis-empty">No financial terms were detected.</p>
+                                {% endif %}
+                            </div>
+
+                            <div class="term-column">
+                                <p class="term-group-title">Time & Deadlines</p>
+                                {% if overall_analysis.time_terms %}
+                                <ul class="term-list">
+                                    {% for item in overall_analysis.time_terms %}
+                                    <li>
+                                        <span class="term-value">{{ item.value }}</span>
+                                        <span class="term-context">{{ item.context }}</span>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% else %}
+                                <p class="analysis-empty">No time limits or deadlines were detected.</p>
+                                {% endif %}
+                            </div>
+
+                            <div class="term-column">
+                                <p class="term-group-title">Key Dates</p>
+                                {% if overall_analysis.key_dates %}
+                                <ul class="term-list">
+                                    {% for item in overall_analysis.key_dates %}
+                                    <li>
+                                        <span class="term-value">{{ item.value }}</span>
+                                        <span class="term-context">{{ item.context }}</span>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                {% else %}
+                                <p class="analysis-empty">No key calendar dates were detected.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="analysis-panel missing full-width">
+                        <h3>Potentially Missing Provisions</h3>
+                        {% if overall_analysis.missing %}
+                        <ul>
+                            {% for item in overall_analysis.missing %}
+                            <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                        <p class="analysis-empty" style="margin-top:10px;">These items were not detected. This does not prove they are absent from the document.</p>
+                        {% else %}
+                        <p class="analysis-empty">No expected provisions were flagged as missing by the current review rules.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </section>
+            {% endif %}
+
+
+            {% if not results %}
+            <section class="no-findings-card">
+                <div class="no-findings-icon">✓</div>
+                <div>
+                    <p class="eyebrow">Review completed</p>
+                    <h2>No supported clauses detected</h2>
+                    <p>This document was analyzed successfully, but cleAIra did not detect any supported contractual provisions in the submitted text.</p>
+                    <p class="no-findings-note">This does not mean the document has no legal significance. It only means that no clauses matched the current review rules.</p>
+                </div>
+            </section>
+            {% endif %}
+
+            {% for result in results %}
+            <article class="result">
+                <div class="result-header">
+                    <div>
+                        <p class="result-category">{{ result.category }}</p>
+                        <h2>{{ result.title }}</h2>
+                    </div>
+
+                    <div class="result-badges">
+                        <span class="risk-pill">{{ result.risk }} Risk</span>
+                        <span class="priority-pill {{ result.get('priority', 'Review').lower().replace(' ', '-') }}">
+                            {{ result.get('priority', 'Review') }}
+                        </span>
+                    </div>
+                </div>
+
+                <div class="detected-clause">
+                    <p class="section-label">Detected clause</p>
+                    <p>{{ result.sentence }}</p>
+                </div>
+
+                <div class="explanation-block">
+                    <p class="section-label">Explanation</p>
+                    <p class="explanation-text">{{ result.explanation }}</p>
+                </div>
+
+                {% if result.simple %}
+                <div class="simple-box">
+                    <p class="section-label">In simple terms</p>
+                    <p>{{ result.simple }}</p>
+                </div>
+                {% endif %}
+
+                {% if result.why_it_matters %}
+                <div class="info-box">
+                    <p class="section-label">Why this matters</p>
+                    <p>{{ result.why_it_matters }}</p>
+                </div>
+                {% endif %}
+
+                {% if result.what_to_check %}
+                <div class="check-box">
+                    <p class="section-label">What to check</p>
+                    <ul>
+                        {% for item in result.what_to_check %}
+                        <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                {% if result.suggested_action %}
+                <div class="action-box">
+                    <p class="section-label">Suggested action</p>
+                    <p>{{ result.suggested_action }}</p>
+                </div>
+                {% endif %}
+            </article>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+
+</body>
+</html>

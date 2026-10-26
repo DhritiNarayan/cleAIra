@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>cleAIra History</title>
+    <link rel="stylesheet" href="/static/style.css">
+
+    <style>
+        /* History action menu */
+        .menu-wrap {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .menu-toggle {
+            width: 56px;
+            height: 56px;
+            border: none;
+            border-radius: 16px;
+            background: #eee7dc;
+            color: #173b45;
+            font-size: 28px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .menu-toggle:hover {
+            background: #e3dbcf;
+        }
+
+        .menu-dropdown {
+            display: none;
+            position: absolute;
+            top: 64px;
+            right: 0;
+            width: 180px;
+            background: white;
+            border: 1px solid #e5dfd5;
+            border-radius: 14px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.14);
+            padding: 7px;
+            z-index: 1000;
+        }
+
+        .menu-wrap.open .menu-dropdown {
+            display: block;
+        }
+
+        .menu-dropdown a,
+        .menu-dropdown button,
+        .select-multiple-option {
+            width: 100%;
+            box-sizing: border-box;
+            display: block;
+            border: none;
+            background: transparent;
+            text-align: left;
+            padding: 11px 12px;
+            border-radius: 9px;
+            color: #173b45;
+            font-size: 14px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .menu-dropdown a:hover,
+        .menu-dropdown button:hover,
+        .select-multiple-option:hover {
+            background: #f4f0e9;
+        }
+
+        .menu-dropdown .delete-option {
+            color: #b42318;
+        }
+
+        .menu-dropdown form {
+            margin: 0;
+        }
+
+        .select-multiple-option {
+            margin: 0;
+        }
+
+        /* Multiple selection mode */
+        .history-select-box {
+            display: none;
+            width: 22px;
+            height: 22px;
+            margin-right: 14px;
+            cursor: pointer;
+            accent-color: #5d752b;
+            flex-shrink: 0;
+        }
+
+        body.multi-select-mode .history-select-box {
+            display: block;
+        }
+
+        body.multi-select-mode .bulk-menu-bar {
+            display: flex;
+        }
+
+        .bulk-menu-bar {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-top: 18px;
+            padding: 14px 18px;
+            background: white;
+            border: 1px solid #e5dfd5;
+            border-radius: 14px;
+        }
+
+        .bulk-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .cancel-select-button {
+            border: none;
+            background: transparent;
+            color: #52636a;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .cancel-select-button:hover {
+            text-decoration: underline;
+        }
+
+        .danger-button {
+            border: none;
+            border-radius: 10px;
+            padding: 10px 15px;
+            cursor: pointer;
+        }
+
+        .danger-button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        body.multi-select-mode .history-card {
+            cursor: default;
+        }
+
+        .history-card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 14px;
+        }
+
+        .history-main {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .history-heading-row {
+            display: flex;
+            align-items: center;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="navbar">
+    <span>cleAIra</span>
+
+    <div class="nav-actions">
+        <a class="nav-link" href="/">Review</a>
+        <a class="nav-link" href="/account">{{ user.username }}</a>
+        <a class="nav-link" href="/logout">Logout</a>
+    </div>
+</div>
+
+<div class="container">
+    <h2>Review History</h2>
+
+    {% if reviews %}
+
+    <div class="history-list">
+
+        {% for review in reviews %}
+
+        <div class="history-item">
+
+            <div class="history-card">
+
+                <div class="history-card-top">
+
+                    <div class="history-main">
+
+                        <div class="history-heading-row">
+
+                            <input
+                                type="checkbox"
+                                class="history-checkbox history-select-box"
+                                value="{{ review.id }}"
+                                aria-label="Select {{ review.source }}"
+                            >
+
+                            <div>
+                                <strong>{{ review.source }}</strong>
+                                <span>{{ review.created_at }}</span>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="menu-wrap">
+
+                        <button
+                            class="menu-toggle"
+                            type="button"
+                            aria-label="More actions for {{ review.source }}"
+                            aria-expanded="false"
+                        >
+                            ⋯
+                        </button>
+
+                        <div class="menu-dropdown">
+
+                            <a href="{{ url_for('history_detail', review_id=review.id) }}">
+                                View details
+                            </a>
+
+                            <button
+                                type="button"
+                                class="select-multiple-option"
+                                data-select-multiple
+                            >
+                                Select multiple
+                            </button>
+
+                            <form
+                                method="POST"
+                                action="{{ url_for('history_delete', review_id=review.id) }}"
+                                onsubmit="return confirm('Delete this review entry?');"
+                            >
+                                <button
+                                    type="submit"
+                                    class="delete-option"
+                                >
+                                    Delete
+                                </button>
+                            </form>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <p>{{ review.preview }}</p>
+
+                <div class="history-meta">
+                    <span>{{ review.finding_count }} findings</span>
+
+                    <a
+                        class="view-details-link"
+                        href="{{ url_for('history_detail', review_id=review.id) }}"
+                    >
+                        View details
+                    </a>
+                </div>
+
+            </div>
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+    <div class="bulk-menu-bar" id="bulk-menu-bar">
+
+        <div class="bulk-left">
+            <span>
+                Selected:
+                <strong id="selected-count">0</strong>
+            </span>
+
+            <button
+                type="button"
+                class="cancel-select-button"
+                id="cancel-select-mode"
+            >
+                Cancel
+            </button>
+        </div>
+
+        <button
+            type="button"
+            class="danger-button"
+            id="delete-selected-button"
+            disabled
+        >
+            Delete selected
+        </button>
+
+    </div>
+
+    {% else %}
+
+    <div class="empty-state">
+        No review history yet. Run your first document review to see results here.
+    </div>
+
+    {% endif %}
+</div>
+
+<script src="/static/script.js"></script>
+
+</body>
+</html>

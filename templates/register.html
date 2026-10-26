@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>cleAIra Register</title>
+
+<link rel="stylesheet" href="/static/style.css">
+
+</head>
+
+<body>
+
+<div class="navbar">
+    cleAIra
+</div>
+
+<div class="login-page">
+
+<div class="login-card">
+
+<h2>Create account</h2>
+<p class="subtitle">AI-Based Legal Document Review</p>
+
+{% if errors %}
+<div class="login-error">
+{% for error in errors %}
+<p>{{ error }}</p>
+{% endfor %}
+</div>
+{% endif %}
+
+<form method="POST">
+
+<label for="username">Username</label>
+<input
+id="username"
+type="text"
+name="username"
+value="{{ form.username }}"
+required
+autocomplete="username"
+>
+
+<label for="email">Email</label>
+<input
+id="email"
+type="email"
+name="email"
+value="{{ form.email }}"
+required
+autocomplete="email"
+>
+
+<label for="password">Password</label>
+<input
+id="password"
+type="password"
+name="password"
+required
+autocomplete="new-password"
+>
+
+<label for="confirm">Confirm password</label>
+<input
+id="confirm"
+type="password"
+name="confirm"
+required
+autocomplete="new-password"
+>
+
+<button class="submit" type="submit">
+Register
+</button>
+
+</form>
+
+<p class="auth-switch">
+Already have an account?
+<a href="/login">Sign in</a>
+</p>
+
+</div>
+
+</div>
+
+</body>
+</html>

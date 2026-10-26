@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>cleAIra Review Details</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+<div class="navbar">
+    <span>cleAIra</span>
+    <div class="nav-actions">
+        <a class="nav-link" href="/">Review</a>
+        <a class="nav-link" href="/history">History</a>
+        <a class="nav-link" href="/account">{{ user.username }}</a>
+        <a class="nav-link" href="/logout">Logout</a>
+    </div>
+</div>
+
+<div class="container">
+    <div class="detail-header">
+        <h2>{{ review.source }}</h2>
+        <p>Reviewed on {{ review.created_at }}</p>
+    </div>
+
+    <div class="detail-preview">
+        <strong>Preview</strong>
+        <p>{{ review.preview }}</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('history_delete', review_id=review.id) }}" onsubmit="return confirm('Delete this review?');">
+        <button class="danger-button" type="submit">Delete review</button>
+    </form>
+
+    {% if review.results %}
+    {% for result in review.results %}
+    <div class="result">
+        <h2>{{ result.category }}</h2>
+
+        <p>
+            Risk:
+            <span class="{{ result.risk.lower() }}">{{ result.risk }}</span>
+        </p>
+
+        <p>{{ result.sentence }}</p>
+
+        <p>
+            <strong>Explanation:</strong>
+            {{ result.explanation }}
+        </p>
+
+        <div class="simple-box">
+            <strong>Simplified</strong>
+            <p>{{ result.simple }}</p>
+        </div>
+
+        {% if result.score is defined %}
+        <p>
+            <strong>Confidence:</strong>
+            {{ result.score }}
+        </p>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        No findings were recorded for this review.
+    </div>
+    {% endif %}
+</div>
+
+</body>
+</html>
