@@ -1,66 +1,66 @@
 import os
 import re
-import sqlite3
 from datetime import datetime
-from werkzeug.security import generate_password_hash, check_password_hash
 
-DB_PATH = os.environ.get("CLEAIRA_DB_PATH", "users.db")
+import psycopg
+from psycopg.rows import dict_row
+from werkzeug.security import generate_password_hash, check_password_hash
 
 
 def get_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Open a PostgreSQL connection using the Neon DATABASE_URL."""
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise RuntimeError(
+            "DATABASE_URL is not set. Add your Neon PostgreSQL connection string "
+            "to your environment variables."
+        )
+    return psycopg.connect(database_url, row_factory=dict_row)
 
 
-# Backward-compatible alias used by the existing cleAIra app.
+# Backward-compatible alias used by the existing cleAIra app and history.py.
 def get_db():
     return get_connection()
 
 
-def _columns(conn):
-    return {row["name"] for row in conn.execute("PRAGMA table_info(users)").fetchall()}
-
-
 def init_db():
-    conn = get_connection()
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
-            email TEXT NOT NULL UNIQUE,
-            password_hash TEXT NOT NULL,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
-        )
-        """
-    )
-    conn.commit()
-
-    columns = _columns(conn)
-
-    # Migrate the existing users table without deleting users.db.
-    if "email_verified" not in columns:
+    """Create the application tables if they do not already exist."""
+    with get_connection() as conn:
         conn.execute(
-            "ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 1"
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id BIGSERIAL PRIMARY KEY,
+                username TEXT NOT NULL,
+                email TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                email_verified BOOLEAN NOT NULL DEFAULT TRUE,
+                verification_token TEXT,
+                verification_created_at TIMESTAMPTZ
+            )
+            """
         )
-
-    if "verification_token" not in columns:
         conn.execute(
-            "ALTER TABLE users ADD COLUMN verification_token TEXT"
+            """
+            CREATE TABLE IF NOT EXISTS reviews (
+                id BIGSERIAL PRIMARY KEY,
+                user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                source TEXT NOT NULL DEFAULT 'Pasted text',
+                preview TEXT NOT NULL DEFAULT '(empty document)',
+                results_json TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
         )
-
-    if "verification_created_at" not in columns:
         conn.execute(
-            "ALTER TABLE users ADD COLUMN verification_created_at TEXT"
+            "CREATE INDEX IF NOT EXISTS idx_reviews_user_id_id ON reviews (user_id, id DESC)"
         )
-
-    conn.commit()
-    conn.close()
 
 
 def validate_register(username, email, password, confirm):
     errors = []
+    username = (username or "").strip()
+    email = (email or "").strip()
 
     if not username:
         errors.append("Username is required.")
@@ -80,60 +80,52 @@ def validate_register(username, email, password, confirm):
     if password != confirm:
         errors.append("Passwords do not match.")
 
-    conn = get_connection()
+    if email:
+        with get_connection() as conn:
+            if conn.execute(
+                "SELECT 1 FROM users WHERE lower(email) = lower(%s)",
+                (email,),
+            ).fetchone():
+                errors.append("Email is already registered.")
 
-    if conn.execute(
-        "SELECT 1 FROM users WHERE email = ?",
-        (email,),
-    ).fetchone():
-        errors.append("Email is already registered.")
-
-    conn.close()
     return errors
 
 
 def create_user(username, email, password):
-    conn = get_connection()
     password_hash = generate_password_hash(password)
-
-    cursor = conn.execute(
-        """
-        INSERT INTO users
-            (username, email, password_hash, email_verified)
-        VALUES (?, ?, ?, 0)
-        """,
-        (username, email, password_hash),
-    )
-
-    user_id = cursor.lastrowid
-    conn.commit()
-    conn.close()
-    return user_id
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            INSERT INTO users (username, email, password_hash, email_verified)
+            VALUES (%s, %s, %s, FALSE)
+            RETURNING id
+            """,
+            (username.strip(), email.strip(), password_hash),
+        ).fetchone()
+        return row["id"]
 
 
 def get_user_by_id(user_id):
-    conn = get_connection()
-    row = conn.execute(
-        "SELECT * FROM users WHERE id = ?",
-        (user_id,),
-    ).fetchone()
-    conn.close()
-    return dict(row) if row else None
+    with get_connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM users WHERE id = %s",
+            (user_id,),
+        ).fetchone()
+        return dict(row) if row else None
 
 
 def get_user_by_login(login_value):
-    conn = get_connection()
-    row = conn.execute(
-        """
-        SELECT * FROM users
-        WHERE lower(username) = lower(?)
-           OR lower(email) = lower(?)
-        LIMIT 1
-        """,
-        (login_value, login_value),
-    ).fetchone()
-    conn.close()
-    return dict(row) if row else None
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT * FROM users
+            WHERE lower(username) = lower(%s)
+               OR lower(email) = lower(%s)
+            LIMIT 1
+            """,
+            (login_value, login_value),
+        ).fetchone()
+        return dict(row) if row else None
 
 
 def verify_password(user, password):
@@ -145,56 +137,49 @@ def verify_password(user, password):
 
 
 def update_password(user_id, new_password):
-    conn = get_connection()
-    conn.execute(
-        "UPDATE users SET password_hash = ? WHERE id = ?",
-        (generate_password_hash(new_password), user_id),
-    )
-    conn.commit()
-    conn.close()
+    with get_connection() as conn:
+        conn.execute(
+            "UPDATE users SET password_hash = %s WHERE id = %s",
+            (generate_password_hash(new_password), user_id),
+        )
 
 
 def set_verification_token(user_id, token):
-    conn = get_connection()
-    conn.execute(
-        """
-        UPDATE users
-        SET verification_token = ?,
-            verification_created_at = ?
-        WHERE id = ?
-        """,
-        (token, datetime.utcnow().isoformat(), user_id),
-    )
-    conn.commit()
-    conn.close()
+    with get_connection() as conn:
+        conn.execute(
+            """
+            UPDATE users
+            SET verification_token = %s,
+                verification_created_at = %s
+            WHERE id = %s
+            """,
+            (token, datetime.utcnow(), user_id),
+        )
 
 
 def get_user_by_verification_token(token):
-    conn = get_connection()
-    row = conn.execute(
-        """
-        SELECT * FROM users
-        WHERE verification_token = ?
-          AND email_verified = 0
-        LIMIT 1
-        """,
-        (token,),
-    ).fetchone()
-    conn.close()
-    return dict(row) if row else None
+    with get_connection() as conn:
+        row = conn.execute(
+            """
+            SELECT * FROM users
+            WHERE verification_token = %s
+              AND email_verified = FALSE
+            LIMIT 1
+            """,
+            (token,),
+        ).fetchone()
+        return dict(row) if row else None
 
 
 def mark_email_verified(user_id):
-    conn = get_connection()
-    conn.execute(
-        """
-        UPDATE users
-        SET email_verified = 1,
-            verification_token = NULL,
-            verification_created_at = NULL
-        WHERE id = ?
-        """,
-        (user_id,),
-    )
-    conn.commit()
-    conn.close()
+    with get_connection() as conn:
+        conn.execute(
+            """
+            UPDATE users
+            SET email_verified = TRUE,
+                verification_token = NULL,
+                verification_created_at = NULL
+            WHERE id = %s
+            """,
+            (user_id,),
+        )

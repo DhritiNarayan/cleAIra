@@ -7,3 +7,4 @@ pytesseract
 Pillow
 pdf2image
 scikit-learn
+psycopg[binary]>=3.2

@@ -14,20 +14,21 @@ def save_review(user_id, source, preview, results, summary=None, overall_analysi
         "overall_analysis": overall_analysis,
     }
 
-    conn = get_db()
-    cursor = conn.execute(
-        "INSERT INTO reviews (user_id, source, preview, results_json) VALUES (?, ?, ?, ?)",
-        (
-            user_id,
-            source or "Pasted text",
-            preview or "(empty document)",
-            json.dumps(review_payload),
-        ),
-    )
-    conn.commit()
-    review_id = cursor.lastrowid
-    conn.close()
-    return review_id
+    with get_db() as conn:
+        row = conn.execute(
+            """
+            INSERT INTO reviews (user_id, source, preview, results_json)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id
+            """,
+            (
+                user_id,
+                source or "Pasted text",
+                preview or "(empty document)",
+                json.dumps(review_payload),
+            ),
+        ).fetchone()
+        return row["id"]
 
 
 def _decode_review_payload(raw_json):
@@ -47,42 +48,45 @@ def _decode_review_payload(raw_json):
 
 
 def list_reviews(user_id):
-    conn = get_db()
-    rows = conn.execute(
-        "SELECT id, source, preview, results_json, created_at "
-        "FROM reviews WHERE user_id = ? ORDER BY id DESC",
-        (user_id,),
-    ).fetchall()
-    conn.close()
+    with get_db() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, source, preview, results_json, created_at
+            FROM reviews
+            WHERE user_id = %s
+            ORDER BY id DESC
+            """,
+            (user_id,),
+        ).fetchall()
 
     reviews = []
     for row in rows:
         payload = _decode_review_payload(row["results_json"])
-        results = payload["results"]
         reviews.append({
             "id": row["id"],
             "source": row["source"],
             "preview": row["preview"],
             "created_at": row["created_at"],
-            "finding_count": len(results),
+            "finding_count": len(payload["results"]),
         })
     return reviews
 
 
 def get_review(user_id, review_id):
-    conn = get_db()
-    row = conn.execute(
-        "SELECT id, source, preview, results_json, created_at "
-        "FROM reviews WHERE id = ? AND user_id = ?",
-        (review_id, user_id),
-    ).fetchone()
-    conn.close()
+    with get_db() as conn:
+        row = conn.execute(
+            """
+            SELECT id, source, preview, results_json, created_at
+            FROM reviews
+            WHERE id = %s AND user_id = %s
+            """,
+            (review_id, user_id),
+        ).fetchone()
 
     if not row:
         return None
 
     payload = _decode_review_payload(row["results_json"])
-
     return {
         "id": row["id"],
         "source": row["source"],
@@ -95,15 +99,12 @@ def get_review(user_id, review_id):
 
 
 def delete_review(user_id, review_id):
-    conn = get_db()
-    cursor = conn.execute(
-        "DELETE FROM reviews WHERE id = ? AND user_id = ?",
-        (review_id, user_id),
-    )
-    conn.commit()
-    deleted = cursor.rowcount
-    conn.close()
-    return deleted > 0
+    with get_db() as conn:
+        cursor = conn.execute(
+            "DELETE FROM reviews WHERE id = %s AND user_id = %s",
+            (review_id, user_id),
+        )
+        return cursor.rowcount > 0
 
 
 def delete_selected_reviews(user_id, review_ids):
@@ -120,14 +121,11 @@ def delete_selected_reviews(user_id, review_ids):
     if not clean_ids:
         return 0
 
-    placeholders = ", ".join("?" for _ in clean_ids)
-
-    conn = get_db()
-    cursor = conn.execute(
-        f"DELETE FROM reviews WHERE user_id = ? AND id IN ({placeholders})",
-        (user_id, *clean_ids),
-    )
-    conn.commit()
-    deleted = cursor.rowcount
-    conn.close()
-    return deleted
+    # Build placeholders only for integer IDs, never for user-supplied SQL.
+    placeholders = ", ".join("%s" for _ in clean_ids)
+    with get_db() as conn:
+        cursor = conn.execute(
+            f"DELETE FROM reviews WHERE user_id = %s AND id IN ({placeholders})",
+            (user_id, *clean_ids),
+        )
+        return cursor.rowcount
