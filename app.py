@@ -49,7 +49,8 @@ def request_too_large(error):
         error_message="The uploaded file is too large. Please upload a file smaller than 10 MB.",
     ), 413
 
-UPLOAD_FOLDER = "uploads"
+UPLOAD_FOLDER = "/tmp/cleaira_uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 ALLOWED_UPLOAD_EXTENSIONS = {"pdf", "png", "jpg", "jpeg"}
 
 if not os.path.exists(UPLOAD_FOLDER):
