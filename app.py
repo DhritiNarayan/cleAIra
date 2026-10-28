@@ -13,37 +13,17 @@ import pytesseract
 from PIL import Image
 from pdf2image import convert_from_path
 from legal_ai_service import contextualize_existing_findings, detect_additional_risks_with_ai
-from functools import wraps
-
-from flask import Flask, request, render_template, redirect, url_for, session, abort
+from flask import Flask, request, render_template, abort, redirect
 from werkzeug.utils import secure_filename
-from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
-from email.message import EmailMessage
-import smtplib
-import ssl
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from auth import (
-    init_db,
-    create_user,
-    get_user_by_id,
-    get_user_by_login,
-    verify_password,
-    validate_register,
-    update_password,
-    mark_email_verified,
-    get_user_by_verification_token,
-)
 from clauses import clauses
 from history import save_review, list_reviews, get_review, delete_review
 
 
 # ---------------- APP ----------------
 app = Flask(__name__)
-app.secret_key = os.environ.get("CLEAIRA_SECRET_KEY", "cleaira-dev-secret-key")
-app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB upload limit
 
 
@@ -68,39 +48,6 @@ def request_too_large(error):
         overall_analysis=None,
         error_message="The uploaded file is too large. Please upload a file smaller than 10 MB.",
     ), 413
-
-init_db()
-
-
-def login_required(view):
-    @wraps(view)
-    def wrapped(*args, **kwargs):
-        user = current_user()
-        if not user:
-            session.clear()
-            return redirect(url_for("login"))
-        return view(*args, **kwargs)
-
-    return wrapped
-
-
-def current_user():
-    user_id = session.get("user_id")
-    if not user_id:
-        return None
-    return get_user_by_id(user_id)
-
-
-@app.context_processor
-def inject_user():
-    return {"user": current_user()}
-
-
-def start_session(user):
-    session.clear()
-    session["user_id"] = user["id"]
-    session["username"] = user["username"]
-
 
 UPLOAD_FOLDER = "uploads"
 ALLOWED_UPLOAD_EXTENSIONS = {"pdf", "png", "jpg", "jpeg"}
@@ -279,270 +226,6 @@ def extract_text_using_ocr(file_path):
             )
 
     return text
-
-
-
-# ---------------- EMAIL VERIFICATION ----------------
-EMAIL_HOST = os.environ.get("CLEAIRA_EMAIL_HOST", "smtp.gmail.com")
-EMAIL_PORT = int(os.environ.get("CLEAIRA_EMAIL_PORT", "465"))
-EMAIL_USERNAME = os.environ.get("CLEAIRA_EMAIL_USERNAME", "")
-EMAIL_PASSWORD = os.environ.get("CLEAIRA_EMAIL_PASSWORD", "")
-APP_BASE_URL = os.environ.get("CLEAIRA_BASE_URL", "http://127.0.0.1:5000")
-
-def send_verification_email(user):
-    """Send a real verification email using SMTP."""
-    if not EMAIL_USERNAME or not EMAIL_PASSWORD:
-        raise RuntimeError(
-            "Email is not configured. Set CLEAIRA_EMAIL_USERNAME and "
-            "CLEAIRA_EMAIL_PASSWORD before registering."
-        )
-
-    token = user["verification_token"]
-    verification_url = (
-        APP_BASE_URL.rstrip("/")
-        + url_for("verify_email", token=token)
-    )
-
-    message = EmailMessage()
-    message["Subject"] = "Verify your cleAIra account"
-    message["From"] = EMAIL_USERNAME
-    message["To"] = user["email"]
-    message.set_content(
-        f"""Hello {user["username"]},
-
-Welcome to cleAIra.
-
-Please verify your email address by opening the link below:
-
-{verification_url}
-
-This link is valid for 24 hours.
-
-If you did not create a cleAIra account, you can ignore this email.
-
-— cleAIra
-"""
-    )
-
-    context = ssl.create_default_context()
-    with smtplib.SMTP_SSL(EMAIL_HOST, EMAIL_PORT, context=context) as server:
-        server.login(EMAIL_USERNAME, EMAIL_PASSWORD)
-        server.send_message(message)
-
-
-@app.route("/verify-email/<token>")
-def verify_email(token):
-    user = get_user_by_verification_token(token)
-
-    if not user:
-        return render_template(
-            "verify_email.html",
-            success=False,
-            message="This verification link is invalid or has expired.",
-        )
-
-    try:
-        serializer = URLSafeTimedSerializer(app.secret_key)
-        serializer.loads(
-            token,
-            salt="cleaira-email-verification",
-            max_age=60 * 60 * 24,
-        )
-    except SignatureExpired:
-        return render_template(
-            "verify_email.html",
-            success=False,
-            message="This verification link has expired. Please register again.",
-        )
-    except BadSignature:
-        return render_template(
-            "verify_email.html",
-            success=False,
-            message="This verification link is invalid.",
-        )
-
-    mark_email_verified(user["id"])
-
-    return render_template(
-        "verify_email.html",
-        success=True,
-        message="Your email has been verified successfully. You can now log in.",
-    )
-
-# ---------------- AUTH ----------------
-@app.route("/register", methods=["GET", "POST"])
-def register():
-    if session.get("user_id"):
-        return redirect(url_for("home"))
-
-    errors = []
-    form = {"username": "", "email": ""}
-
-    if request.method == "POST":
-        form["username"] = request.form.get("username", "").strip()
-        form["email"] = request.form.get("email", "").strip().lower()
-        password = request.form.get("password", "")
-        confirm = request.form.get("confirm", "")
-
-        errors = validate_register(
-            form["username"],
-            form["email"],
-            password,
-            confirm,
-        )
-
-        if not errors:
-            try:
-                user_id = create_user(
-                    form["username"],
-                    form["email"],
-                    password,
-                )
-                user = get_user_by_id(user_id)
-
-                serializer = URLSafeTimedSerializer(app.secret_key)
-                token = serializer.dumps(
-                    {"user_id": user_id, "email": form["email"]},
-                    salt="cleaira-email-verification",
-                )
-
-                # Store the same signed token so the verification route can
-                # find the account without exposing the password or other data.
-                from auth import set_verification_token
-                set_verification_token(user_id, token)
-
-                user = get_user_by_id(user_id)
-
-                if EMAIL_USERNAME and EMAIL_PASSWORD:
-                    send_verification_email(user)
-                    return render_template(
-                        "verify_email.html",
-                        success=True,
-                        message=(
-                            "Account created. A verification email has been sent to "
-                            f"{form['email']}. Please verify your email before logging in."
-                        ),
-                    )
-                else:
-                    mark_email_verified(user_id)
-                    start_session(get_user_by_id(user_id))
-                    return redirect(url_for("home"))
-            except Exception as exc:
-                errors.append(
-                    "Your account could not be created or the verification email "
-                    f"could not be sent: {exc}"
-                )
-
-    return render_template(
-        "register.html",
-        errors=errors,
-        form=form,
-    )
-
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    if session.get("user_id"):
-        return redirect(url_for("home"))
-
-    error = None
-    login_value = ""
-
-    if request.method == "POST":
-        login_value = request.form.get("username", "").strip()
-        password = request.form.get("password", "")
-
-        user = get_user_by_login(login_value)
-
-        if user and verify_password(user, password):
-            if not user.get("email_verified", 1):
-                error = "Please verify your email before logging in."
-            else:
-                start_session(user)
-                return redirect(url_for("home"))
-        else:
-            error = "Invalid username/email or password."
-
-    return render_template(
-        "login.html",
-        error=error,
-        login_value=login_value,
-    )
-
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("login"))
-
-
-@app.route("/account", methods=["GET", "POST"])
-@login_required
-def account():
-    errors = []
-    success = None
-
-    if request.method == "POST":
-        current_password = request.form.get("current_password", "")
-        new_password = request.form.get("new_password", "")
-        confirm = request.form.get("confirm", "")
-
-        user = current_user()
-
-        if not user or not verify_password(user, current_password):
-            errors.append("Current password is incorrect.")
-        elif len(new_password) < 8:
-            errors.append("New password must be at least 8 characters.")
-        elif new_password != confirm:
-            errors.append("New passwords do not match.")
-        else:
-            update_password(user["id"], new_password)
-            success = "Password updated."
-
-    return render_template(
-        "account.html",
-        errors=errors,
-        success=success,
-    )
-
-
-@app.route("/history")
-@login_required
-def history():
-    reviews = list_reviews(current_user()["id"])
-    return render_template(
-        "history.html",
-        reviews=reviews,
-    )
-
-
-@app.route("/history/<int:review_id>")
-@login_required
-def history_detail(review_id):
-    review = get_review(
-        current_user()["id"],
-        review_id,
-    )
-
-    if not review:
-        abort(404)
-
-    return render_template(
-        "history_detail.html",
-        review=review,
-    )
-
-
-@app.route("/history/<int:review_id>/delete", methods=["POST"])
-@login_required
-def history_delete(review_id):
-    delete_review(
-        current_user()["id"],
-        review_id,
-    )
-
-    return redirect(url_for("history"))
-
 
 
 # ---------------- RISK PRIORITY ----------------
@@ -2710,7 +2393,6 @@ def build_overall_analysis(document_text, results):
 
 # ---------------- HOME ----------------
 @app.route("/", methods=["GET", "POST"])
-@login_required
 def home():
     results = []
 
@@ -2930,7 +2612,7 @@ def home():
         overall_analysis = build_overall_analysis(user_input, results)
 
         save_review(
-            current_user()["id"],
+            0,
             source,
             user_input,
             results,
@@ -2949,6 +2631,26 @@ def home():
         overall_analysis=overall_analysis,
         ai_status=ai_status if request.method == "POST" else None,
     )
+
+
+@app.route("/history")
+def history():
+    reviews = list_reviews(0)
+    return render_template("history.html", reviews=reviews)
+
+
+@app.route("/history/<int:review_id>")
+def history_detail(review_id):
+    review = get_review(0, review_id)
+    if not review:
+        abort(404)
+    return render_template("history_detail.html", review=review)
+
+
+@app.route("/history/<int:review_id>/delete", methods=["POST"])
+def history_delete(review_id):
+    delete_review(0, review_id)
+    return redirect("/history")
 
 
 # ---------------- RUN ----------------
