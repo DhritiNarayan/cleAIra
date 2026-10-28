@@ -8,13 +8,13 @@ body{
 .navbar{
     background:#556B2F;
     color:white;
-    padding:22px;
+    padding:22px 30px;
     text-align:center;
     font-size:30px;
     font-weight:bold;
     display:flex;
     align-items:center;
-    justify-content:center;
+    justify-content:space-between;
     position:relative;
 }
 
@@ -456,4 +456,29 @@ button.submit{
     cursor:pointer;
     font-weight:bold;
     margin-bottom:20px;
+}
+.navbar form {
+    display: inline;
+    margin: 0;
+    padding: 0;
+}
+
+.navbar form button.nav-link {
+    background: transparent;
+    border: none;
+    color: white;
+    font-family: inherit;
+    font-size: 18px;
+    font-weight: normal;
+    line-height: normal;
+    cursor: pointer;
+    padding: 0;
+    margin: 0;
+    vertical-align: middle;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.navbar form button.nav-link:hover {
+    opacity: 0.8;
 }
