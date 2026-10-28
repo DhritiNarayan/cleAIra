@@ -372,8 +372,12 @@ def verify_email(token):
 
     return render_template(
         "verify_email.html",
-        success=True,
-        message="Your email has been verified successfully. You can now log in.",
+        success=False,
+        pending=True,
+        message=(
+        "Account created. A verification email has been sent to "
+        f"{form['email']}. Please verify your email before logging in."
+        ),
     )
 
 # ---------------- AUTH ----------------

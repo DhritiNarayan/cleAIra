@@ -92,25 +92,34 @@
             cle<span>AI</span>ra
         </div>
 
-        {% if success %}
-            <div class="icon">✓</div>
+       {% if success %}
+    <div class="icon">✓</div>
 
-            <h1>Email Verified</h1>
+    <h1>Email Verified</h1>
 
-            <p>
-                Your email address has been successfully verified.
-                You can now log in to your cleAIra account.
-            </p>
-        {% else %}
-            <div class="icon">✉</div>
+    <p>
+        Your email address has been successfully verified.
+        You can now log in to your cleAIra account.
+    </p>
+       {% elif pending %}
+    <div class="icon">✉</div>
 
-            <h1>Email Verification</h1>
+    <h1>Verification Email Sent</h1>
 
-            <p>
-                We could not verify your email address.
-            </p>
-        {% endif %}
+    <p>
+        Please check your inbox and click the verification link
+        to activate your cleAIra account.
+    </p>
+       {% else %}
+    <div class="icon">✕</div>
 
+    <h1>Email Verification Failed</h1>
+
+    <p>
+        We could not verify your email address. The link may be
+        invalid or expired.
+    </p>
+    {% endif %}
         {% if message %}
             <div class="message">
                 {{ message }}
