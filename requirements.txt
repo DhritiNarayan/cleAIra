@@ -1,2 +1,9 @@
+Flask
 google-genai>=1.0.0
 python-dotenv
+nltk
+PyMuPDF
+pytesseract
+Pillow
+pdf2image
+scikit-learn
