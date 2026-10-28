@@ -329,18 +329,11 @@ If you did not create a cleAIra account, you can ignore this email.
 
 @app.route("/verify-email/<token>")
 def verify_email(token):
-    user = get_user_by_verification_token(token)
-
-    if not user:
-        return render_template(
-            "verify_email.html",
-            success=False,
-            message="This verification link is invalid or has expired.",
-        )
-
+    # The token itself identifies the account; verification must not depend on
+    # a login session or on the device that submitted the registration form.
     try:
         serializer = URLSafeTimedSerializer(app.secret_key)
-        serializer.loads(
+        payload = serializer.loads(
             token,
             salt="cleaira-email-verification",
             max_age=60 * 60 * 24,
@@ -349,13 +342,30 @@ def verify_email(token):
         return render_template(
             "verify_email.html",
             success=False,
-            message="This verification link has expired. Please register again.",
+            message="This verification link has expired. Please request a new verification email.",
         )
     except BadSignature:
         return render_template(
             "verify_email.html",
             success=False,
             message="This verification link is invalid.",
+        )
+
+    user = get_user_by_verification_token(token)
+
+    if not user:
+        return render_template(
+            "verify_email.html",
+            success=False,
+            message="This verification link is invalid, has already been used, or the account is already verified.",
+        )
+
+    # Defensively ensure the signed token's account details match the database row.
+    if payload.get("user_id") != user["id"] or payload.get("email", "").lower() != user["email"].lower():
+        return render_template(
+            "verify_email.html",
+            success=False,
+            message="This verification link does not match the account. Please request a new verification email.",
         )
 
     mark_email_verified(user["id"])
@@ -388,6 +398,12 @@ def register():
             confirm,
         )
 
+        if not errors and (not EMAIL_USERNAME or not EMAIL_PASSWORD):
+            errors.append(
+                "Email verification is not configured on the server. "
+                "Please try again later or contact the site administrator."
+            )
+
         if not errors:
             try:
                 user_id = create_user(
@@ -408,20 +424,15 @@ def register():
 
                 user = get_user_by_id(user_id)
 
-                if EMAIL_USERNAME and EMAIL_PASSWORD:
-                    send_verification_email(user)
-                    return render_template(
-                        "verify_email.html",
-                        success=True,
-                        message=(
-                            "Account created. A verification email has been sent to "
-                            f"{form['email']}. Please verify your email before logging in."
-                        ),
-                    )
-                else:
-                    mark_email_verified(user_id)
-                    start_session(get_user_by_id(user_id))
-                    return redirect(url_for("home"))
+                send_verification_email(user)
+                return render_template(
+                    "verify_email.html",
+                    success=True,
+                    message=(
+                        "Account created. A verification email has been sent to "
+                        f"{form['email']}. Please verify your email before logging in."
+                    ),
+                )
             except Exception as exc:
                 errors.append(
                     "Your account could not be created or the verification email "

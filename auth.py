@@ -34,7 +34,7 @@ def init_db():
                 email TEXT NOT NULL UNIQUE,
                 password_hash TEXT NOT NULL,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                email_verified BOOLEAN NOT NULL DEFAULT TRUE,
+                email_verified BOOLEAN NOT NULL DEFAULT FALSE,
                 verification_token TEXT,
                 verification_created_at TIMESTAMPTZ
             )
